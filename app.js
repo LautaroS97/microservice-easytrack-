@@ -21,15 +21,6 @@ const agent = new https.Agent({
     ca: ca
 });
 
-// Usar el agente en tus solicitudes HTTP/HTTPS
-axios.get('https://microservice-easytrack-production.up.railway.app', { httpsAgent: agent })
-    .then(response => {
-        console.log('Respuesta:', response.data);
-    })
-    .catch(error => {
-        console.error('Error en la solicitud:', error);
-    });
-
 const app = express();
 
 // Configuración de seguridad y middlewares
@@ -146,6 +137,15 @@ function parseAddressFromXML(xml) {
 
 app.post('/twilio-webhook', async (req, res) => {
     console.log('Llamada entrante desde Twilio');
+
+    // Mover la solicitud de axios dentro de una función para ejecutarla cuando sea necesario
+    axios.get('https://microservice-easytrack-production.up.railway.app', { httpsAgent: agent })
+        .then(response => {
+            console.log('Respuesta:', response.data);
+        })
+        .catch(error => {
+            console.error('Error en la solicitud:', error);
+        });
 
     const xml = await extractDataAndGenerateXML();
     
