@@ -9,6 +9,26 @@ const morgan = require('morgan');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const twilio = require('twilio');
+const https = require('https');
+const fs = require('fs');
+const axios = require('axios');
+
+// Cargar certificado
+const ca = fs.readFileSync('certs/railway-cert.crt');
+
+// Configurar el agente HTTPS
+const agent = new https.Agent({
+    ca: ca
+});
+
+// Usar el agente en tus solicitudes HTTP/HTTPS
+axios.get('https://microservice-easytrack-production.up.railway.app', { httpsAgent: agent })
+    .then(response => {
+        console.log('Respuesta:', response.data);
+    })
+    .catch(error => {
+        console.error('Error en la solicitud:', error);
+    });
 
 const app = express();
 
