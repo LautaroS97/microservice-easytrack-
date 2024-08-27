@@ -4,37 +4,16 @@ require('dotenv').config();
 const express = require('express');
 const puppeteer = require('puppeteer');
 const xmlbuilder = require('xmlbuilder');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const twilio = require('twilio');
-const https = require('https');
-const fs = require('fs');
-const axios = require('axios');
-
-// Cargar certificado
-const ca = fs.readFileSync('certs/railway-cert.crt');
-
-// Configurar el agente HTTPS
-const agent = new https.Agent({
-    ca: ca
-});
 
 const app = express();
-
-// Configuración de seguridad y middlewares
-app.use(helmet()); // Añade cabeceras de seguridad
-app.use(morgan('combined')); // Logger de solicitudes HTTP
-app.use(cors()); // Habilita CORS
-app.use(bodyParser.json()); // Parsear JSON en el body de las solicitudes
 
 // Configuración de Twilio usando variables de entorno
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = twilio(accountSid, authToken);
 
-async function extractDataAndGenerateXML() {
+async function extractData() {
     let browser = await puppeteer.launch({ 
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -108,13 +87,8 @@ async function extractDataAndGenerateXML() {
         }
 
         if (result.success) {
-            console.log('Convirtiendo el texto a XML...');
-            const xml = xmlbuilder.create('root')
-                .ele('address', result.text)
-                .end({ pretty: true });
-
-            console.log('XML generado:\n', xml);
-            return xml;
+            console.log('Dirección obtenida:', result.text);
+            return result.text;
         } else {
             console.error('No se pudo obtener el dato de ninguna de las URLs.');
             return null;
@@ -129,42 +103,27 @@ async function extractDataAndGenerateXML() {
     }
 }
 
-function parseAddressFromXML(xml) {
-    // Extrae el texto relevante del XML
-    const match = xml.match(/<address>(.*?)<\/address>/);
-    return match ? match[1] : 'una ubicación desconocida';
-}
+app.get('/voice', async (req, res) => {
+    console.log('Solicitud entrante a /voice');
 
-app.post('/twilio-webhook', async (req, res) => {
-    console.log('Llamada entrante desde Twilio');
-
-    // Mover la solicitud de axios dentro de una función para ejecutarla cuando sea necesario
-    axios.get('https://microservice-easytrack-production.up.railway.app', { httpsAgent: agent })
-        .then(response => {
-            console.log('Respuesta:', response.data);
-        })
-        .catch(error => {
-            console.error('Error en la solicitud:', error);
-        });
-
-    const xml = await extractDataAndGenerateXML();
+    const address = await extractData();
     
-    if (xml) {
-        const address = parseAddressFromXML(xml);
+    if (address) {
+        // Generar el XML con la dirección dinámica
+        const xml = xmlbuilder.create('Response')
+            .ele('Say', { voice: 'man', loop: 5 }, address)
+            .end({ pretty: true });
 
-        // Generar respuesta TwiML
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say(`El bus se encuentra en ${address}`, { voice: 'alice' });
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
+        res.type('application/xml');
+        res.send(xml);
     } else {
-        // Respuesta TwiML en caso de error
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say('Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.', { voice: 'alice' });
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
+        // Generar un XML de error en caso de no obtener la dirección
+        const xml = xmlbuilder.create('Response')
+            .ele('Say', { voice: 'man', loop: 5 }, 'Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.')
+            .end({ pretty: true });
+
+        res.type('application/xml');
+        res.send(xml);
     }
 });
 
