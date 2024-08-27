@@ -88,7 +88,7 @@ async function extractData() {
 
         if (result.success) {
             console.log('Dirección obtenida:', result.text);
-            return result.text;
+            return result.text;  // Devolvemos el texto sin duplicar "El bus se encuentra"
         } else {
             console.error('No se pudo obtener el dato de ninguna de las URLs.');
             return null;
@@ -109,9 +109,9 @@ app.get('/voice', async (req, res) => {
     const address = await extractData();
     
     if (address) {
-        // Generar el XML con la dirección dinámica
+        // Generar el XML con la dirección dinámica y atributos específicos
         const xml = xmlbuilder.create('Response')
-            .ele('Say', { voice: 'man', loop: 5 }, address)
+            .ele('Say', { voice: 'man', loop: 5 }, `El bus se encuentra en ${address}`)
             .end({ pretty: true });
 
         res.type('application/xml');
