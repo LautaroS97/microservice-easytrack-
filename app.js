@@ -80,12 +80,14 @@ async function extractDataAndGenerateXML() {
             if (result.success) {
                 result.text = `El bus se encuentra detenido en ${result.text}`;
             }
+        } else {
+            result.text = `El bus se encuentra en ${result.text}`;
         }
 
         if (result.success) {
             console.log('Convirtiendo el texto a XML...');
             const xml = xmlbuilder.create('Response')
-                .ele('Say', { voice: 'man', loop: 5 }, `El bus se encuentra en ${result.text}`)
+                .ele('Say', { voice: 'man', loop: 5 }, result.text)
                 .end({ pretty: true });
 
             console.log('XML generado:\n', xml);
@@ -95,6 +97,11 @@ async function extractDataAndGenerateXML() {
         } else {
             console.error('No se pudo obtener el dato de ninguna de las URLs.');
         }
+
+        // Desplegar el menú de usuario
+        console.log('Desplegando el menú de usuario...');
+        await page.click('.nav-link.dropdown-toggle.company-name');
+        await page.waitForSelector('#btn-logout', { visible: true });
 
         // Hacer logout
         console.log('Haciendo logout...');
@@ -114,7 +121,7 @@ async function extractDataAndGenerateXML() {
 async function updateXMLPeriodically() {
     while (true) {
         await extractDataAndGenerateXML();
-        console.log('Esperando 2 minutos para la próxima actualización...');
+        console.log('Esperando 10 minutos para la próxima actualización...');
         await new Promise(resolve => setTimeout(resolve, 10 * 60 * 1000));
     }
 }
