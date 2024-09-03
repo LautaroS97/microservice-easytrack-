@@ -87,7 +87,7 @@ async function extractDataAndGenerateXML() {
         if (result.success) {
             console.log('Convirtiendo el texto a XML...');
             const xml = xmlbuilder.create('Response')
-                .ele('Say', { voice: 'man', loop: 5 }, result.text)
+                .ele('Say', { voice: 'man', language: "es-ES" }, result.text)
                 .end({ pretty: true });
 
             console.log('XML generado:\n', xml);
