@@ -95,7 +95,7 @@ async function extractDataAndGenerateXML() {
             // Guardar el XML en la variable global para que esté disponible en /voice
             latestXml = xml;
         } else {
-            console.error('No se pudo obtener el dato de ninguna de las URLs.');
+            console.error('No se pudo obtener el dato de ninguna de las URLs');
         }
 
     } catch (error) {
