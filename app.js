@@ -4,14 +4,8 @@ require('dotenv').config();
 const express = require('express');
 const puppeteer = require('puppeteer');
 const xmlbuilder = require('xmlbuilder');
-const twilio = require('twilio');
 
 const app = express();
-
-// Configuración de Twilio usando variables de entorno
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
 
 let latestXml = null; // Variable para almacenar el XML generado
 
@@ -90,74 +84,51 @@ async function extractDataAndGenerateXML() {
 
         if (result.success) {
             console.log('Convirtiendo el texto a XML...');
-            const xml = xmlbuilder.create('root')
-                .ele('address', result.text)
+            const xml = xmlbuilder.create('Response')
+                .ele('Say', { voice: 'man', loop: 5 }, `El bus se encuentra en ${result.text}`)
                 .end({ pretty: true });
 
             console.log('XML generado:\n', xml);
 
             // Guardar el XML en la variable global para que esté disponible en /voice
             latestXml = xml;
-
-            return xml;
         } else {
             console.error('No se pudo obtener el dato de ninguna de las URLs.');
-            return null;
         }
+
+        // Hacer logout
+        console.log('Haciendo logout...');
+        await page.click('#btn-logout');
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+        console.log('Logout exitoso.');
 
     } catch (error) {
         console.error('Error al extraer el texto:', error);
-        return null;
     } finally {
         console.log('Cerrando el navegador...');
         await browser.close();
     }
 }
 
-function parseAddressFromXML(xml) {
-    // Extrae el texto relevante del XML
-    const match = xml.match(/<address>(.*?)<\/address>/);
-    return match ? match[1] : 'una ubicación desconocida';
+// Función que se ejecuta periódicamente para actualizar el XML
+async function updateXMLPeriodically() {
+    while (true) {
+        await extractDataAndGenerateXML();
+        console.log('Esperando 2 minutos para la próxima actualización...');
+        await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000));
+    }
 }
 
-// Manejo de la solicitud POST desde Twilio
-app.post('/twilio-webhook', async (req, res) => {
-    console.log('Llamada entrante desde Twilio');
-
-    const xml = await extractDataAndGenerateXML();
-    
-    if (xml) {
-        const address = parseAddressFromXML(xml);
-
-        // Generar respuesta TwiML
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say(`El bus se encuentra en ${address}`, { voice: 'alice' });
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
-    } else {
-        // Respuesta TwiML en caso de error
-        const twiml = new twilio.twiml.VoiceResponse();
-        twiml.say('Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.', { voice: 'alice' });
-        
-        res.type('text/xml');
-        res.send(twiml.toString());
-    }
-});
+// Iniciar el proceso de actualización periódica
+updateXMLPeriodically();
 
 // Manejo de la solicitud GET para /voice
 app.get('/voice', (req, res) => {
     console.log('Solicitud entrante a /voice');
 
     if (latestXml) {
-        // Generar el XML con la dirección dinámica y atributos específicos
-        const address = parseAddressFromXML(latestXml);
-        const xml = xmlbuilder.create('Response')
-            .ele('Say', { voice: 'man', loop: 5 }, `El bus se encuentra en ${address}`)
-            .end({ pretty: true });
-
         res.type('application/xml');
-        res.send(xml);
+        res.send(latestXml);
     } else {
         // Generar un XML de error en caso de no tener datos recientes
         const xml = xmlbuilder.create('Response')
