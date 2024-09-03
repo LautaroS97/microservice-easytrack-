@@ -110,8 +110,8 @@ async function extractDataAndGenerateXML() {
 async function updateXMLPeriodically() {
     while (true) {
         await extractDataAndGenerateXML();
-        console.log('Esperando 2 minutos para la próxima actualización...');
-        await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000));
+        console.log('Esperando 20 minutos para la próxima actualización...');
+        await new Promise(resolve => setTimeout(resolve, 20 * 60 * 1000));
     }
 }
 
