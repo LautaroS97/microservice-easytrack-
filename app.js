@@ -87,7 +87,8 @@ async function extractDataAndGenerateXML() {
         if (result.success) {
             console.log('Convirtiendo el texto a XML...');
             const xml = xmlbuilder.create('Response')
-                .ele('Say', { voice: 'man', language: "es-ES" }, result.text)
+                .ele('Dial', { volume: '1.5' })
+                    .ele('Say', { voice: 'Polly.Miguel-Neural', language: "es-MX" }, result.text)
                 .end({ pretty: true });
 
             console.log('XML generado:\n', xml);
@@ -128,7 +129,8 @@ app.get('/voice', (req, res) => {
     } else {
         // Generar un XML de error en caso de no tener datos recientes
         const xml = xmlbuilder.create('Response')
-            .ele('Say', { voice: 'man', language: "es-ES" }, 'Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.')
+            .ele('Dial', { volume: '1.5' })
+                .ele('Say', { voice: 'Polly.Miguel-Neural', language: "es-MX" }, 'Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.')
             .end({ pretty: true });
 
         res.type('application/xml');
