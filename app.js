@@ -110,8 +110,8 @@ async function extractDataAndGenerateXML() {
 async function updateXMLPeriodically() {
     while (true) {
         await extractDataAndGenerateXML();
-        console.log('Esperando 15 segundos para la próxima actualización...');
-        await new Promise(resolve => setTimeout(resolve, 15 * 1000));
+        console.log('Esperando 20 minutos para la próxima actualización...');
+        await new Promise(resolve => setTimeout(resolve, 20 * 60 * 1000));
     }
 }
 
@@ -128,7 +128,7 @@ app.get('/voice', (req, res) => {
     } else {
         // Generar un XML de error en caso de no tener datos recientes
         const xml = xmlbuilder.create('Response')
-            .ele('Say', { voice: 'man', loop: 5 }, 'Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.')
+            .ele('Say', { voice: 'man', language: "es-ES" }, 'Lo sentimos, no se pudo obtener la información en este momento. Por favor, intente nuevamente más tarde.')
             .end({ pretty: true });
 
         res.type('application/xml');
