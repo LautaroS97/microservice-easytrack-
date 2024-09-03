@@ -78,10 +78,10 @@ async function extractDataAndGenerateXML() {
             }
 
             if (result.success) {
-                result.text = `El bus se encuentra detenido en ${result.text}`;
+                result.text = `${result.text}`;
             }
         } else {
-            result.text = `El bus se encuentra en ${result.text}`;
+            result.text = `${result.text}`;
         }
 
         if (result.success) {
