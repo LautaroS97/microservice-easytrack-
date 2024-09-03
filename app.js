@@ -98,17 +98,6 @@ async function extractDataAndGenerateXML() {
             console.error('No se pudo obtener el dato de ninguna de las URLs.');
         }
 
-        // Desplegar el menú de usuario
-        console.log('Desplegando el menú de usuario...');
-        await page.click('.nav-link.dropdown-toggle.company-name');
-        await page.waitForSelector('#btn-logout', { visible: true });
-
-        // Hacer logout
-        console.log('Haciendo logout...');
-        await page.click('#btn-logout');
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-        console.log('Logout exitoso.');
-
     } catch (error) {
         console.error('Error al extraer el texto:', error);
     } finally {
@@ -121,8 +110,8 @@ async function extractDataAndGenerateXML() {
 async function updateXMLPeriodically() {
     while (true) {
         await extractDataAndGenerateXML();
-        console.log('Esperando 10 minutos para la próxima actualización...');
-        await new Promise(resolve => setTimeout(resolve, 10 * 60 * 1000));
+        console.log('Esperando 2 minutos para la próxima actualización...');
+        await new Promise(resolve => setTimeout(resolve, 2 * 60 * 1000));
     }
 }
 
