@@ -6,7 +6,7 @@ const puppeteer = require('puppeteer');
 const xmlbuilder = require('xmlbuilder');
 
 const app = express();
-app.use(express.json()); // Para poder manejar el body de solicitudes POST
+app.use(express.json()); // Para manejar el cuerpo de solicitudes POST
 
 let latestXml = null; // Variable para almacenar el XML generado
 
