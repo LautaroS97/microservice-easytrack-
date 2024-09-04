@@ -112,8 +112,8 @@ app.post('/update', async (req, res) => {
     console.log('Solicitud POST entrante para actualizar el XML');
 
     try {
-        await extractDataAndGenerateXML();
-        res.status(200).send({ message: 'XML actualizado con éxito.' });
+        extractDataAndGenerateXML();
+        res.status(200).send({ message: 'Solicitud recibida, XML se está actualizando.' });
     } catch (error) {
         console.error('Error al actualizar el XML:', error);
         res.status(500).send({ message: 'Error al actualizar el XML.' });
