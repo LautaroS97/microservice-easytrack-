@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer');
 const xmlbuilder = require('xmlbuilder');
 
 const app = express();
+app.use(express.json()); // Para poder manejar el body de solicitudes POST
 
 let latestXml = null; // Variable para almacenar el XML generado
 
@@ -106,17 +107,18 @@ async function extractDataAndGenerateXML() {
     }
 }
 
-// Función que se ejecuta periódicamente para actualizar el XML
-async function updateXMLPeriodically() {
-    while (true) {
-        await extractDataAndGenerateXML();
-        console.log('Esperando 15 segundos para la próxima actualización...');
-        await new Promise(resolve => setTimeout(resolve, 15 * 1000));
-    }
-}
+// Manejo de la solicitud POST para actualizar el XML
+app.post('/update', async (req, res) => {
+    console.log('Solicitud POST entrante para actualizar el XML');
 
-// Iniciar el proceso de actualización periódica
-updateXMLPeriodically();
+    try {
+        await extractDataAndGenerateXML();
+        res.status(200).send({ message: 'XML actualizado con éxito.' });
+    } catch (error) {
+        console.error('Error al actualizar el XML:', error);
+        res.status(500).send({ message: 'Error al actualizar el XML.' });
+    }
+});
 
 // Manejo de la solicitud GET para /voice
 app.get('/voice', (req, res) => {
