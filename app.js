@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 const express = require('express');
-const puppeteer = require('puppeteer');
+const axios = require('axios');
 const xmlbuilder = require('xmlbuilder');
 
 const app = express();
@@ -10,100 +10,59 @@ app.use(express.json()); // Para manejar el cuerpo de solicitudes POST
 
 let latestXml = null; // Variable para almacenar el XML generado
 
-async function extractDataAndGenerateXML() {
-    let browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    let page = await browser.newPage();
-
+// Función para obtener el token de autenticación
+async function getAuthToken() {
     try {
-        console.log('Navegando a la URL...');
-        await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'domcontentloaded' });
-
-        console.log('Esperando que el formulario de login esté disponible...');
-        await page.waitForSelector('app-root app-login.ng-star-inserted');
-
-        console.log('Ingresando credenciales...');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'naranja2024@transportesversari');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'naranja');
-
-        console.log('Presionando Enter...');
-        await page.keyboard.press('Enter');
-
-        try {
-            console.log('Esperando la navegación después de presionar Enter...');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 });
-        } catch (error) {
-            console.error('Fallo al intentar iniciar sesión con Enter. Intentando con el botón de inicio de sesión...', error);
-
-            console.log('Intentando hacer clic en el botón de inicio de sesión...');
-            await page.click('app-root app-login.ng-star-inserted #btn-login');
-
-            console.log('Esperando la navegación después de hacer clic en el botón de inicio de sesión...');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-        }
-
-        async function getDataFromDashboard(url) {
-            console.log(`Navegando a la URL: ${url}`);
-            await page.goto(url, { waitUntil: 'domcontentloaded' });
-
-            const containerSelector = 'div.ag-cell-value[aria-colindex="7"][role="gridcell"]';
-            console.log('Esperando el elemento que contiene el texto...');
-            try {
-                await page.waitForSelector(containerSelector, { timeout: 15000 });
-
-                console.log('Extrayendo el texto del elemento...');
-                const extractedText = await page.$eval(`${containerSelector} a`, element => element.textContent.trim());
-
-                console.log('Texto extraído:', extractedText);
-
-                const truncatedText = extractedText.split(',').slice(0, 2).join(',');
-                console.log('Texto truncado:', truncatedText);
-
-                return { success: true, text: truncatedText };
-            } catch (error) {
-                console.error('No se encontró el bus en circulación.');
-                return { success: false, text: '' };
-            }
-        }
-
-        let result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1000');
-        if (!result.success) {
-            result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1007');
-            if (!result.success) {
-                console.log('Recargando el navegador y esperando 60 segundos...');
-                await page.reload({ waitUntil: ['domcontentloaded'] });
-                await page.waitForTimeout(15000);
-                result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1007');
-            }
-
-            if (result.success) {
-                result.text = `${result.text}`;
-            }
-        } else {
-            result.text = `${result.text}`;
-        }
-
-        if (result.success) {
-            console.log('Convirtiendo el texto a XML...');
-            const xml = xmlbuilder.create('Response')
-                .ele('Say', { voice: 'Polly.Andres-Neural', language: "es-MX" }, result.text)
-                .end({ pretty: true });
-
-            console.log('XML generado:\n', xml);
-
-            // Guardar el XML en la variable global para que esté disponible en /voice
-            latestXml = xml;
-        } else {
-            console.error('No se pudo obtener el dato de ninguna de las URLs');
-        }
-
+        const response = await axios.post('https://apiavl.easytrack.com.uy/sessions/auth/', {
+            username: process.env.API_USERNAME, // Usar variables de entorno para mayor seguridad
+            password: process.env.API_PASSWORD
+        });
+        return response.data.jwt; // Devuelve el token JWT
     } catch (error) {
-        console.error('Error al extraer el texto:', error);
-    } finally {
-        console.log('Cerrando el navegador...');
-        await browser.close();
+        console.error('Error al obtener el token:', error);
+        throw error;
+    }
+}
+
+// Función para obtener las posiciones de los vehículos
+async function getVehiclePositions(token) {
+    try {
+        const response = await axios.get('https://apiavl.easytrack.com.uy/positions', {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+        return response.data; // Retorna un array de posiciones
+    } catch (error) {
+        console.error('Error al obtener las posiciones:', error);
+        throw error;
+    }
+}
+
+// Función para generar el XML basado en los datos obtenidos
+function generateXML(positionData) {
+    const position = positionData.length > 0 ? positionData[0].position : 'No se pudo obtener la posición';
+    const xml = xmlbuilder.create('Response')
+        .ele('Say', { voice: 'Polly.Andres-Neural', language: "es-MX" }, `El bus se encuentra en ${position}`)
+        .end({ pretty: true });
+    return xml;
+}
+
+// Función principal para autenticar y obtener los datos, y luego generar el XML
+async function extractDataAndGenerateXML() {
+    try {
+        // Obtener el token
+        const token = await getAuthToken();
+
+        // Obtener las posiciones de los vehículos
+        const positions = await getVehiclePositions(token);
+
+        // Generar el XML con la posición obtenida
+        latestXml = generateXML(positions);
+
+        console.log('XML generado:\n', latestXml);
+    } catch (error) {
+        console.error('Error al extraer datos y generar XML:', error);
     }
 }
 
@@ -112,8 +71,8 @@ app.post('/update', async (req, res) => {
     console.log('Solicitud POST entrante para actualizar el XML');
 
     try {
-        extractDataAndGenerateXML();
-        res.status(200).send({ message: 'Solicitud recibida, XML se está actualizando.' });
+        await extractDataAndGenerateXML();
+        res.status(200).send({ message: 'Solicitud recibida, XML actualizado.' });
     } catch (error) {
         console.error('Error al actualizar el XML:', error);
         res.status(500).send({ message: 'Error al actualizar el XML.' });
