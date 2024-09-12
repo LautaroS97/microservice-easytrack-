@@ -25,8 +25,8 @@ const buses = {
 // Función para esperar que el contenedor de los datos esté presente
 async function waitForDataContainer(page) {
     try {
-        // Esperar que el contenedor de datos con la clase 'ag-center-cols-viewport' esté presente
-        await page.waitForSelector('div.ag-center-cols-viewport', {
+        // Esperar que el contenedor de datos con la clase 'ag-body-viewport ag-layout-normal ag-row-animation' esté presente
+        await page.waitForSelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation', {
             timeout: 20000,  // Aumentado el timeout a 20 segundos
         });
         console.log('Contenedor de datos encontrado.');
@@ -37,13 +37,17 @@ async function waitForDataContainer(page) {
     }
 }
 
-// Función para buscar la matrícula y extraer la dirección
+// Función para buscar la matrícula y extraer la dirección dentro del contenedor específico
 async function findBusData(page, busMatricula) {
     try {
-        // Buscar el div que contenga la matrícula con page.evaluate
+        // Buscar el div que contenga la matrícula dentro del contenedor específico
         const busElement = await page.evaluate((busMatricula) => {
-            const busDivs = Array.from(document.querySelectorAll('div.ag-cell-value[aria-colindex="2"]'));
-            return busDivs.find(div => div.textContent.trim() === busMatricula);
+            const container = document.querySelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation');
+            if (container) {
+                const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]'));
+                return busDivs.find(div => div.textContent.trim() === busMatricula);
+            }
+            return null;
         }, busMatricula);
 
         if (busElement) {
