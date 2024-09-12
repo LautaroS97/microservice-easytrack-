@@ -40,14 +40,18 @@ async function waitForDataContainer(page) {
 // Función para buscar la matrícula y extraer la dirección
 async function findBusData(page, busMatricula) {
     try {
-        // Buscar el div que contenga la matrícula
-        const busElement = await page.$x(`//div[text()="${busMatricula}"]`);
-        if (busElement.length > 0) {
+        // Buscar el div que contenga la matrícula con page.evaluate
+        const busElement = await page.evaluate((busMatricula) => {
+            const busDivs = Array.from(document.querySelectorAll('div.ag-cell-value[aria-colindex="2"]'));
+            return busDivs.find(div => div.textContent.trim() === busMatricula);
+        }, busMatricula);
+
+        if (busElement) {
             console.log(`Matrícula ${busMatricula} encontrada.`);
             
             // Subir al div padre y bajar al último hijo para encontrar la dirección
-            const parentDiv = await busElement[0].evaluateHandle(el => el.parentElement);
-            const addressElement = await parentDiv.evaluateHandle(el => el.lastElementChild);
+            const parentDiv = await page.evaluateHandle((element) => element.parentElement, busElement);
+            const addressElement = await page.evaluateHandle((element) => element.lastElementChild, parentDiv);
             const extractedText = await addressElement.evaluate(el => el.textContent.trim());
 
             console.log(`Dirección encontrada para ${busMatricula}: ${extractedText}`);
