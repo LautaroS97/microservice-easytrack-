@@ -22,86 +22,56 @@ const buses = {
     bus_3: 'FMD808'
 };
 
-// Función para extraer datos y generar el XML para un bus en específico
-async function extractDataForBus(busKey, busMatricula) {
-    let browser = await puppeteer.launch({ 
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    let page = await browser.newPage();
+// Función para buscar la dirección del bus en la URL y devolver la posición
+async function getDataFromDashboard(page, busKey, busMatricula, url) {
+    console.log(`Navegando a la URL: ${url} para el bus ${busKey}`);
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    const containerSelector = `div.ag-center-cols-container div.ag-row div.ag-cell[aria-colindex="2"]:contains(${busMatricula})`;
+    console.log(`Esperando el elemento que contiene la matrícula del bus ${busKey}...`);
 
     try {
-        console.log(`Iniciando búsqueda para el bus ${busKey} (${busMatricula})...`);
-        await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector(containerSelector, { timeout: 15000 });
+        const extractedText = await page.$eval(
+            `div.ag-center-cols-container div.ag-row div.ag-cell[aria-colindex="7"] a`,
+            element => element.textContent.trim()
+        );
 
-        console.log('Esperando que el formulario de login esté disponible...');
-        await page.waitForSelector('app-root app-login.ng-star-inserted');
+        console.log(`Texto extraído para ${busKey}: ${extractedText}`);
+        const truncatedText = extractedText.split(',').slice(0, 2).join(',');
 
-        console.log('Ingresando credenciales...');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'usuarioexterno@transportesversari');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'usu4rio3xt3rn0');
-
-        console.log('Presionando Enter...');
-        await page.keyboard.press('Enter');
-
-        try {
-            console.log('Esperando la navegación después de presionar Enter...');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 });
-        } catch (error) {
-            console.error(`Fallo al intentar iniciar sesión para ${busKey}. Intentando con el botón de inicio de sesión...`);
-            await page.click('app-root app-login.ng-star-inserted #btn-login');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-        }
-
-        // Función interna para buscar la dirección del bus
-        async function getDataFromDashboard(url) {
-            console.log(`Navegando a la URL: ${url} para el bus ${busKey}`);
-            await page.goto(url, { waitUntil: 'domcontentloaded' });
-
-            const containerSelector = `div.ag-cell-value[aria-colindex="2"][role="gridcell"]:contains(${busMatricula})`;
-            console.log(`Esperando el elemento que contiene la matrícula del bus ${busKey}...`);
-
-            try {
-                await page.waitForSelector(containerSelector, { timeout: 15000 });
-                const extractedText = await page.$eval(`div.ag-cell-value[aria-colindex="7"][role="gridcell"] a`, element => element.textContent.trim());
-
-                console.log(`Texto extraído para ${busKey}: ${extractedText}`);
-                const truncatedText = extractedText.split(',').slice(0, 2).join(',');
-
-                return { success: true, text: truncatedText };
-            } catch (error) {
-                console.error(`No se encontró el bus ${busKey} en circulación.`);
-                return { success: false, text: '' };
-            }
-        }
-
-        // Intentar buscar la dirección en varias URL si es necesario
-        let result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1000');
-        if (!result.success) {
-            result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1007');
-            if (!result.success) {
-                console.log(`No se encontró la ubicación del bus ${busKey} en ninguna URL.`);
-                return;
-            }
-        }
-
-        // Si se encuentra la dirección, generar el XML correspondiente
-        if (result.success) {
-            console.log(`Generando XML para el bus ${busKey}...`);
-            const xml = xmlbuilder.create('Response')
-                .ele('Say', { voice: 'Polly.Andres-Neural', language: "es-MX" }, result.text)
-                .end({ pretty: true });
-
-            console.log(`XML generado para ${busKey}:\n${xml}`);
-
-            // Guardar el XML en la variable global
-            latestXml[busKey] = xml;
-        }
+        return { success: true, text: truncatedText };
     } catch (error) {
-        console.error(`Error al extraer la ubicación para ${busKey}:`, error);
-    } finally {
-        console.log(`Cerrando el navegador para ${busKey}...`);
-        await browser.close();
+        console.error(`No se encontró el bus ${busKey} en la URL: ${url}`);
+        return { success: false, text: '' };
+    }
+}
+
+// Función para extraer datos y generar el XML para un bus en específico
+async function extractDataForBus(page, busKey, busMatricula) {
+    console.log(`Iniciando búsqueda para el bus ${busKey} (${busMatricula})...`);
+
+    // Intentar buscar la dirección en varias URL si es necesario
+    let result = await getDataFromDashboard(page, busKey, busMatricula, 'https://avl.easytrack.com.ar/dashboard/1000');
+    if (!result.success) {
+        result = await getDataFromDashboard(page, busKey, busMatricula, 'https://avl.easytrack.com.ar/dashboard/1007');
+        if (!result.success) {
+            console.log(`No se encontró la ubicación del bus ${busKey} en ninguna URL.`);
+            return;
+        }
+    }
+
+    // Si se encuentra la dirección, generar el XML correspondiente
+    if (result.success) {
+        console.log(`Generando XML para el bus ${busKey}...`);
+        const xml = xmlbuilder.create('Response')
+            .ele('Say', { voice: 'Polly.Andres-Neural', language: "es-MX" }, result.text)
+            .end({ pretty: true });
+
+        console.log(`XML generado para ${busKey}:\n${xml}`);
+
+        // Guardar el XML en la variable global
+        latestXml[busKey] = xml;
     }
 }
 
@@ -109,18 +79,28 @@ async function extractDataForBus(busKey, busMatricula) {
 app.post('/update', async (req, res) => {
     console.log('Solicitud POST entrante para actualizar los XML de todos los buses');
 
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+
     try {
-        // Ejecutar las extracciones en paralelo
+        // Ejecutar las extracciones en paralelo para cada bus
         await Promise.all([
-            extractDataForBus('bus_1', buses.bus_1),
-            extractDataForBus('bus_2', buses.bus_2),
-            extractDataForBus('bus_3', buses.bus_3)
+            extractDataForBus(page, 'bus_1', buses.bus_1),
+            extractDataForBus(page, 'bus_2', buses.bus_2),
+            extractDataForBus(page, 'bus_3', buses.bus_3)
         ]);
 
         res.status(200).send({ message: 'XML de los buses se están actualizando.' });
     } catch (error) {
         console.error('Error al actualizar los XML de los buses:', error);
         res.status(500).send({ message: 'Error al actualizar los XML.' });
+    } finally {
+        console.log('Cerrando el navegador...');
+        await browser.close();
     }
 });
 
