@@ -44,22 +44,21 @@ async function findBusData(page, busMatricula) {
         const busElement = await page.evaluate((busMatricula) => {
             const container = document.querySelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation');
             if (container) {
-                const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]'));
-                return busDivs.find(div => div.textContent.trim() === busMatricula);
+                const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]')); // Columna de la matrícula
+                const targetDiv = busDivs.find(div => div.textContent.trim() === busMatricula);
+                if (targetDiv) {
+                    // Subir al div padre y bajar al último hijo para encontrar la dirección
+                    const parentDiv = targetDiv.parentElement;
+                    const addressElement = parentDiv.querySelector('div.ag-cell-value[aria-colindex="4"]'); // Ajustar índice según columna de dirección
+                    return addressElement ? addressElement.textContent.trim() : null;
+                }
             }
             return null;
         }, busMatricula);
 
         if (busElement) {
-            console.log(`Matrícula ${busMatricula} encontrada.`);
-            
-            // Subir al div padre y bajar al último hijo para encontrar la dirección
-            const parentDiv = await page.evaluateHandle((element) => element.parentElement, busElement);
-            const addressElement = await page.evaluateHandle((element) => element.lastElementChild, parentDiv);
-            const extractedText = await addressElement.evaluate(el => el.textContent.trim());
-
-            console.log(`Dirección encontrada para ${busMatricula}: ${extractedText}`);
-            return { success: true, text: extractedText };
+            console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busElement}`);
+            return { success: true, text: busElement };
         } else {
             console.log(`No se encontró la matrícula ${busMatricula}.`);
             return { success: false, text: '' };
