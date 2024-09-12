@@ -78,8 +78,8 @@ async function extractDataAndGenerateXML() {
         await page.waitForSelector('app-root app-login.ng-star-inserted');
 
         console.log('Ingresando credenciales...');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'naranja2024@transportesversari');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'naranja');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'usuarioexterno@transportesversari');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'usu4rio3xt3rn0');
 
         console.log('Presionando Enter...');
         await page.keyboard.press('Enter');
