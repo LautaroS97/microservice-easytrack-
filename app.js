@@ -26,16 +26,24 @@ async function extractDataForBus(page, busKey, busMatricula) {
       console.log(`Buscando la matrícula ${busMatricula}...`);
 
       // Localizar el div cuyo textContent coincida con la matrícula
-      const busDiv = await page.$x(`//div[contains(text(), '${busMatricula}')]`);
-      if (busDiv.length === 0) {
+      const busDiv = await page.evaluate((matricula) => {
+        const divs = Array.from(document.querySelectorAll('div.ag-cell-value'));
+        return divs.find(div => div.textContent.includes(matricula));
+      }, busMatricula);
+
+      if (!busDiv) {
         console.log(`No se encontró la matrícula ${busMatricula}.`);
         return { success: false, text: '' };
       }
 
       // Subir al div padre y luego bajar al último div hijo para encontrar la dirección
-      const parentDiv = await page.evaluateHandle(el => el.parentElement, busDiv[0]);
-      const addressDiv = await parentDiv.evaluateHandle(el => el.lastElementChild);
-      const address = await page.evaluate(el => el.textContent.trim(), addressDiv);
+      const address = await page.evaluate((matricula) => {
+        const divs = Array.from(document.querySelectorAll('div.ag-cell-value'));
+        const busDiv = divs.find(div => div.textContent.includes(matricula));
+        const parentDiv = busDiv.closest('div[role="row"]'); // Subir al padre
+        const addressDiv = parentDiv.querySelector('div.ag-cell-value:last-child'); // Último hijo
+        return addressDiv ? addressDiv.textContent.trim() : '';
+      }, busMatricula);
 
       console.log(`Dirección encontrada para ${busMatricula}: ${address}`);
       return { success: true, text: address };
