@@ -25,9 +25,9 @@ const buses = {
 // Función para esperar que el contenedor de los datos esté presente
 async function waitForDataContainer(page) {
     try {
-        // Esperar que el contenedor con los datos esté presente
-        await page.waitForSelector('div[class="ag-body ag-layout-normal ag-row-no-animation"]', {
-            timeout: 15000,
+        // Esperar que el contenedor de datos con la clase 'ag-center-cols-viewport' esté presente
+        await page.waitForSelector('div.ag-center-cols-viewport', {
+            timeout: 20000,  // Aumentado el timeout a 20 segundos
         });
         console.log('Contenedor de datos encontrado.');
         return true;
