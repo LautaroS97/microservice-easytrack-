@@ -44,12 +44,15 @@ async function extractDataAndGenerateXML() {
         async function getDataFromDashboard(url, busMatricula) {
             console.log(`Navegando a la URL: ${url}`);
             await page.goto(url, { waitUntil: 'domcontentloaded' });
-
+        
+            // Agregar una espera explícita para asegurarse de que los datos se carguen
+            await page.waitForTimeout(5000); // Espera de 5 segundos (ajustable según necesidad)
+        
             console.log(`Buscando la matrícula ${busMatricula}...`);
             try {
                 // Esperar a que la tabla cargue
                 await page.waitForSelector('.ag-center-cols-container', { timeout: 15000 });
-
+        
                 // Buscar la dirección correspondiente a la matrícula
                 const busData = await page.evaluate((busMatricula) => {
                     const rows = document.querySelectorAll('.ag-center-cols-container .ag-row');
@@ -68,7 +71,7 @@ async function extractDataAndGenerateXML() {
                     }
                     return null;
                 }, busMatricula);
-
+        
                 if (busData) {
                     console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busData}`);
                     return { success: true, text: busData };
@@ -80,7 +83,7 @@ async function extractDataAndGenerateXML() {
                 console.error(`Error al buscar la matrícula ${busMatricula}:`, error);
                 return { success: false, text: '' };
             }
-        }
+        }        
 
         for (const [key, matricula] of Object.entries(buses)) {
             let result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1000', matricula);
