@@ -85,23 +85,23 @@ async function extractDataAndGenerateXML() {
 
     try {
         console.log('Navegando a la URL de login...');
-        await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'networkidle0' });
+        await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'domcontentloaded' });
 
         console.log('Esperando que el formulario de login esté disponible...');
         await page.waitForSelector('app-root app-login.ng-star-inserted');
 
         console.log('Ingresando credenciales...');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-0', process.env.EASYTRACK_USERNAME || 'TU_USUARIO');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-1', process.env.EASYTRACK_PASSWORD || 'TU_CONTRASEÑA');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'usuarioexterno@transportesversari');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'usu4rio3xt3rn0');
 
         console.log('Presionando Enter...');
         await page.keyboard.press('Enter');
 
         console.log('Esperando la navegación después de presionar Enter...');
-        await page.waitForNavigation({ waitUntil: 'networkidle0' });
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
 
         console.log('Navegando a la URL del dashboard...');
-        await page.goto('https://avl.easytrack.com.ar/dashboard/1000', { waitUntil: 'networkidle0' });
+        await page.goto('https://avl.easytrack.com.ar/dashboard/1000', { waitUntil: 'domcontentloaded' });
 
         // Asegurar que los datos están cargados
         const containerReady = await waitForDataContainer(page);
@@ -130,7 +130,7 @@ async function extractDataAndGenerateXML() {
         // Si no se encontraron algunas matrículas, navegar a la segunda URL
         if (busesNoEncontrados.length > 0) {
             console.log('Algunas matrículas no fueron encontradas. Navegando a la segunda URL...');
-            await page.goto('https://avl.easytrack.com.ar/dashboard/1007', { waitUntil: 'networkidle0' });
+            await page.goto('https://avl.easytrack.com.ar/dashboard/1007', { waitUntil: 'domcontentloaded' });
 
             // Asegurar que los datos están cargados
             const containerReadySecond = await waitForDataContainer(page);
