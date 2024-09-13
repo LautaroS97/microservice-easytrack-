@@ -22,6 +22,21 @@ const buses = {
     bus_3: 'FMD808',
 };
 
+// Función para esperar que el contenedor de los datos esté presente
+async function waitForDataContainer(page) {
+    try {
+        // Esperar que el contenedor de datos con la clase 'ag-body-viewport ag-layout-normal ag-row-animation' esté presente
+        await page.waitForSelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation', {
+            timeout: 20000,  // Aumentado el timeout a 20 segundos
+        });
+        console.log('Contenedor de datos encontrado.');
+        return true;
+    } catch (error) {
+        console.error('Error: El contenedor de datos no se cargó a tiempo.', error);
+        return false;
+    }
+}
+
 // Función personalizada para esperar la aparición de la matrícula con un tiempo máximo de espera
 async function waitForBusMatricula(page, busMatricula, timeout = 10000) {
     const startTime = Date.now();
