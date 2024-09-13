@@ -22,43 +22,49 @@ const buses = {
     bus_3: 'FMD808',
 };
 
-// Función para esperar que el contenedor de los datos esté presente
+// Función para esperar que el contenedor de los datos y las filas estén presentes
 async function waitForDataContainer(page) {
     try {
-        // Esperar que el contenedor de datos con la clase 'ag-body-viewport ag-layout-normal ag-row-animation' esté presente
-        await page.waitForSelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation', {
-            timeout: 20000,  // Aumentado el timeout a 20 segundos
+        await page.waitForSelector('.ag-center-cols-container', {
+            timeout: 20000,
         });
-        console.log('Contenedor de datos encontrado.');
+
+        await page.waitForFunction(() => {
+            return document.querySelectorAll('.ag-center-cols-container .ag-row').length > 0;
+        }, { timeout: 20000 });
+
+        console.log('Contenedor de datos y filas encontrados.');
         return true;
     } catch (error) {
-        console.error('Error: El contenedor de datos no se cargó a tiempo.', error);
+        console.error('Error: El contenedor de datos o las filas no se cargaron a tiempo.', error);
         return false;
     }
 }
 
-// Función para buscar la matrícula y extraer la dirección dentro del contenedor específico
+// Función para buscar la matrícula y extraer la dirección
 async function findBusData(page, busMatricula) {
     try {
-        // Buscar el div que contenga la matrícula dentro del contenedor específico
-        const busElement = await page.evaluate((busMatricula) => {
-            const container = document.querySelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation');
-            if (container) {
-                const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]')); // Columna de la matrícula
-                const targetDiv = busDivs.find(div => div.textContent.trim() === busMatricula);
-                if (targetDiv) {
-                    // Subir al div padre y bajar al último hijo para encontrar la dirección
-                    const parentDiv = targetDiv.parentElement;
-                    const addressElement = parentDiv.querySelector('div.ag-cell-value[aria-colindex="4"]'); // Ajustar índice según columna de dirección
-                    return addressElement ? addressElement.textContent.trim() : null;
+        const busData = await page.evaluate((busMatricula) => {
+            const rows = document.querySelectorAll('.ag-center-cols-container .ag-row');
+            for (let row of rows) {
+                const matriculaCell = row.querySelector('div[col-id="domain_veh"]');
+                if (matriculaCell && matriculaCell.textContent.trim() === busMatricula) {
+                    const positionCell = row.querySelector('div[col-id="position"]');
+                    if (positionCell) {
+                        const addressLink = positionCell.querySelector('a');
+                        if (addressLink) {
+                            const addressText = addressLink.textContent.trim();
+                            return addressText;
+                        }
+                    }
                 }
             }
             return null;
         }, busMatricula);
 
-        if (busElement) {
-            console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busElement}`);
-            return { success: true, text: busElement };
+        if (busData) {
+            console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busData}`);
+            return { success: true, text: busData };
         } else {
             console.log(`No se encontró la matrícula ${busMatricula}.`);
             return { success: false, text: '' };
@@ -72,32 +78,32 @@ async function findBusData(page, busMatricula) {
 // Función para extraer datos de los buses y generar el XML
 async function extractDataAndGenerateXML() {
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: true, // Cambiar a 'false' para depurar y ver el navegador
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     const page = await browser.newPage();
 
     try {
         console.log('Navegando a la URL de login...');
-        await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'domcontentloaded' });
+        await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'networkidle0' });
 
         console.log('Esperando que el formulario de login esté disponible...');
         await page.waitForSelector('app-root app-login.ng-star-inserted');
 
         console.log('Ingresando credenciales...');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'usuarioexterno@transportesversari');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'usu4rio3xt3rn0');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-0', process.env.EASYTRACK_USERNAME || 'TU_USUARIO');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-1', process.env.EASYTRACK_PASSWORD || 'TU_CONTRASEÑA');
 
         console.log('Presionando Enter...');
         await page.keyboard.press('Enter');
 
         console.log('Esperando la navegación después de presionar Enter...');
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+        await page.waitForNavigation({ waitUntil: 'networkidle0' });
 
         console.log('Navegando a la URL del dashboard...');
-        await page.goto('https://avl.easytrack.com.ar/dashboard/1000', { waitUntil: 'domcontentloaded' });
+        await page.goto('https://avl.easytrack.com.ar/dashboard/1000', { waitUntil: 'networkidle0' });
 
-        // Aguardar a que el contenedor de datos esté disponible
+        // Asegurar que los datos están cargados
         const containerReady = await waitForDataContainer(page);
         if (!containerReady) {
             throw new Error('No se pudo cargar el contenedor de datos.');
@@ -124,7 +130,13 @@ async function extractDataAndGenerateXML() {
         // Si no se encontraron algunas matrículas, navegar a la segunda URL
         if (busesNoEncontrados.length > 0) {
             console.log('Algunas matrículas no fueron encontradas. Navegando a la segunda URL...');
-            await page.goto('https://avl.easytrack.com.ar/dashboard/1007', { waitUntil: 'domcontentloaded' });
+            await page.goto('https://avl.easytrack.com.ar/dashboard/1007', { waitUntil: 'networkidle0' });
+
+            // Asegurar que los datos están cargados
+            const containerReadySecond = await waitForDataContainer(page);
+            if (!containerReadySecond) {
+                throw new Error('No se pudo cargar el contenedor de datos en la segunda URL.');
+            }
 
             for (const { key, matricula } of busesNoEncontrados) {
                 console.log(`Buscando la matrícula ${matricula} en la segunda URL...`);
