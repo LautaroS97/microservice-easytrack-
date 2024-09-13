@@ -25,31 +25,21 @@ async function extractDataAndGenerateXML() {
     let page = await browser.newPage();
 
     try {
-        console.log('Navegando a la URL...');
+        console.log('Navegando a la URL de login...');
         await page.goto('https://avl.easytrack.com.ar/login', { waitUntil: 'domcontentloaded' });
 
         console.log('Esperando que el formulario de login esté disponible...');
         await page.waitForSelector('app-root app-login.ng-star-inserted');
 
         console.log('Ingresando credenciales...');
-        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'usuarioexterno@transportesversari"');
+        await page.type('app-root app-login.ng-star-inserted #mat-input-0', 'usuarioexterno@transportesversari');
         await page.type('app-root app-login.ng-star-inserted #mat-input-1', 'usu4rio3xt3rn0');
 
         console.log('Presionando Enter...');
         await page.keyboard.press('Enter');
 
-        try {
-            console.log('Esperando la navegación después de presionar Enter...');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 });
-        } catch (error) {
-            console.error('Fallo al intentar iniciar sesión con Enter. Intentando con el botón de inicio de sesión...', error);
-
-            console.log('Intentando hacer clic en el botón de inicio de sesión...');
-            await page.click('app-root app-login.ng-star-inserted #btn-login');
-
-            console.log('Esperando la navegación después de hacer clic en el botón de inicio de sesión...');
-            await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-        }
+        console.log('Esperando la navegación después de presionar Enter...');
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
 
         async function getDataFromDashboard(url, busMatricula) {
             console.log(`Navegando a la URL: ${url}`);
