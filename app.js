@@ -45,13 +45,15 @@ async function extractDataAndGenerateXML() {
             console.log(`Navegando a la URL: ${url}`);
             await page.goto(url, { waitUntil: 'domcontentloaded' });
         
-            // Esperar 5 segundos para dar tiempo a que la tabla se cargue completamente
-            await delay(5000);
+            // Usar setTimeout directamente en el flujo con una promesa
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Espera de 5 segundos
         
             console.log(`Buscando la matrícula ${busMatricula}...`);
             try {
+                // Esperar a que la tabla cargue
                 await page.waitForSelector('.ag-center-cols-container', { timeout: 15000 });
         
+                // Buscar la dirección correspondiente a la matrícula
                 const busData = await page.evaluate((busMatricula) => {
                     const rows = document.querySelectorAll('.ag-center-cols-container .ag-row');
                     for (let row of rows) {
@@ -81,7 +83,7 @@ async function extractDataAndGenerateXML() {
                 console.error(`Error al buscar la matrícula ${busMatricula}:`, error);
                 return { success: false, text: '' };
             }
-        }              
+        }                    
 
         for (const [key, matricula] of Object.entries(buses)) {
             let result = await getDataFromDashboard('https://avl.easytrack.com.ar/dashboard/1000', matricula);
