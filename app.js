@@ -27,7 +27,7 @@ async function waitForDataContainer(page) {
     try {
         // Esperar que el contenedor de datos con la clase 'ag-body-viewport ag-layout-normal ag-row-animation' esté presente
         await page.waitForSelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation', {
-            timeout: 20000,  // Aumentado el timeout a 20 segundos
+            timeout: 20000,  // Timeout de 20 segundos
         });
         console.log('Contenedor de datos encontrado.');
         return true;
@@ -44,7 +44,7 @@ async function waitForBusMatricula(page, busMatricula, timeout = 10000) {
         const matriculaEncontrada = await page.evaluate((busMatricula) => {
             const container = document.querySelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation');
             if (container) {
-                const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]'));
+                const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]')); // Columna de la matrícula
                 return busDivs.some(div => div.textContent.trim() === busMatricula);
             }
             return false;
@@ -55,7 +55,7 @@ async function waitForBusMatricula(page, busMatricula, timeout = 10000) {
             return true;  // Matrícula encontrada
         }
 
-        // Esperar un breve período antes de volver a verificar
+        // Esperar 500 ms antes de volver a verificar
         await new Promise(resolve => setTimeout(resolve, 500));
     }
     console.log(`Matrícula ${busMatricula} no encontrada después de ${timeout / 1000} segundos.`);
@@ -73,21 +73,30 @@ async function findBusData(page, busMatricula) {
         }
 
         // Una vez que la matrícula es encontrada, realizar la extracción de la dirección
-        const busElement = await page.evaluate((busMatricula) => {
+        const busData = await page.evaluate((busMatricula) => {
             const container = document.querySelector('div.ag-body-viewport.ag-layout-normal.ag-row-animation');
-            const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]'));
+            const busDivs = Array.from(container.querySelectorAll('div.ag-cell-value[aria-colindex="2"]')); // Buscar las matrículas en la columna correcta
             const targetDiv = busDivs.find(div => div.textContent.trim() === busMatricula);
             if (targetDiv) {
+                // Subir al div padre y bajar al último div hijo para encontrar la dirección
                 const parentDiv = targetDiv.parentElement;
-                const addressElement = parentDiv.querySelector('div.ag-cell-value[aria-colindex="4"]');
-                return addressElement ? addressElement.textContent.trim() : null;
+                const addressElement = parentDiv.lastElementChild; // Último hijo del div padre
+                if (addressElement) {
+                    return { matricula: targetDiv.textContent.trim(), direccion: addressElement.textContent.trim() };
+                }
+                return { matricula: targetDiv.textContent.trim(), direccion: null };
             }
             return null;
         }, busMatricula);
 
-        if (busElement) {
-            console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busElement}`);
-            return { success: true, text: busElement };
+        if (busData) {
+            if (busData.direccion) {
+                console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busData.direccion}`);
+                return { success: true, text: busData.direccion };
+            } else {
+                console.log(`Matrícula ${busMatricula} encontrada, pero no se encontró la dirección.`);
+                return { success: false, text: '' };
+            }
         } else {
             console.log(`No se encontró la dirección para la matrícula ${busMatricula}.`);
             return { success: false, text: '' };
