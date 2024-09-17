@@ -1,4 +1,4 @@
-// Cargar las variables de entorno desde un archivo .env
+// Cargar las variables de entorno desde un archivo .env 
 require('dotenv').config();
 
 const express = require('express');
@@ -91,8 +91,10 @@ async function findBusData(page, busMatricula) {
 
         if (busData) {
             if (busData.direccion) {
-                console.log(`Matrícula ${busMatricula} encontrada con dirección: ${busData.direccion}`);
-                return { success: true, text: busData.direccion };
+                // Truncar la dirección después de la segunda coma
+                const truncatedAddress = busData.direccion.split(',').slice(0, 2).join(',').trim();
+                console.log(`Matrícula ${busMatricula} encontrada con dirección truncada: ${truncatedAddress}`);
+                return { success: true, text: truncatedAddress };
             } else {
                 console.log(`Matrícula ${busMatricula} encontrada, pero no se encontró la dirección.`);
                 return { success: false, text: '' };
@@ -107,6 +109,7 @@ async function findBusData(page, busMatricula) {
     }
 }
 
+// Función para extraer datos de los buses y generar el XML
 async function extractDataAndGenerateXML() {
     const browser = await puppeteer.launch({
         headless: true,
