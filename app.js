@@ -107,7 +107,6 @@ async function findBusData(page, busMatricula) {
     }
 }
 
-// Función para extraer datos de los buses y generar el XML
 async function extractDataAndGenerateXML() {
     const browser = await puppeteer.launch({
         headless: true,
@@ -143,6 +142,7 @@ async function extractDataAndGenerateXML() {
 
         let busesNoEncontrados = [];
 
+        // Primer intento de búsqueda
         for (const [key, matricula] of Object.entries(buses)) {
             console.log(`Buscando la matrícula ${matricula}...`);
             const result = await findBusData(page, matricula);
@@ -159,11 +159,37 @@ async function extractDataAndGenerateXML() {
             }
         }
 
+        // Segundo intento para los buses no encontrados en la misma URL
+        if (busesNoEncontrados.length > 0) {
+            console.log('Repitiendo búsqueda en la misma URL para las matrículas no encontradas...');
+            let busesNoEncontradosEnPrimerIntento = [];
+            
+            for (const { key, matricula } of busesNoEncontrados) {
+                console.log(`Reintentando búsqueda para la matrícula ${matricula} en la misma URL...`);
+                const result = await findBusData(page, matricula);
+                if (result.success) {
+                    // Generar el XML correspondiente
+                    const xml = xmlbuilder.create('Response')
+                        .ele('Say', { voice: 'Polly.Andres-Neural', language: "es-MX" }, result.text)
+                        .end({ pretty: true });
+
+                    console.log(`XML generado para ${key}:\n${xml}`);
+                    latestXml[key] = xml;
+                } else {
+                    busesNoEncontradosEnPrimerIntento.push({ key, matricula });
+                }
+            }
+
+            busesNoEncontrados = busesNoEncontradosEnPrimerIntento;
+        }
+
         // Si no se encontraron algunas matrículas, navegar a la segunda URL
         if (busesNoEncontrados.length > 0) {
-            console.log('Algunas matrículas no fueron encontradas. Navegando a la segunda URL...');
+            console.log('Navegando a la segunda URL...');
             await page.goto('https://avl.easytrack.com.ar/dashboard/1007', { waitUntil: 'domcontentloaded' });
 
+            // Primer intento en la segunda URL
+            let busesNoEncontradosEnSegundaURL = [];
             for (const { key, matricula } of busesNoEncontrados) {
                 console.log(`Buscando la matrícula ${matricula} en la segunda URL...`);
                 const result = await findBusData(page, matricula);
@@ -176,7 +202,27 @@ async function extractDataAndGenerateXML() {
                     console.log(`XML generado para ${key}:\n${xml}`);
                     latestXml[key] = xml;
                 } else {
-                    console.log(`No se encontró la matrícula ${matricula} en ninguna URL.`);
+                    busesNoEncontradosEnSegundaURL.push({ key, matricula });
+                }
+            }
+
+            // Segundo intento en la segunda URL
+            if (busesNoEncontradosEnSegundaURL.length > 0) {
+                console.log('Repitiendo búsqueda en la segunda URL para las matrículas no encontradas...');
+                for (const { key, matricula } of busesNoEncontradosEnSegundaURL) {
+                    console.log(`Reintentando búsqueda para la matrícula ${matricula} en la segunda URL...`);
+                    const result = await findBusData(page, matricula);
+                    if (result.success) {
+                        // Generar el XML correspondiente
+                        const xml = xmlbuilder.create('Response')
+                            .ele('Say', { voice: 'Polly.Andres-Neural', language: "es-MX" }, result.text)
+                            .end({ pretty: true });
+
+                        console.log(`XML generado para ${key}:\n${xml}`);
+                        latestXml[key] = xml;
+                    } else {
+                        console.log(`No se encontró la matrícula ${matricula} en ninguna URL.`);
+                    }
                 }
             }
         }
